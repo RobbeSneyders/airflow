@@ -22,7 +22,8 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Container
 
-from connexion import FlaskApi
+import connexion
+from connexion.options import SwaggerUIOptions
 from flask import url_for
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -83,7 +84,7 @@ from airflow.security.permissions import (
 )
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
-from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
+from airflow.www.extensions.init_views import _LazyResolver
 
 if TYPE_CHECKING:
     from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
@@ -147,20 +148,22 @@ class FabAuthManager(BaseAuthManager):
             SYNC_PERM_COMMAND,  # not in a command group
         ]
 
-    def get_api_endpoints(self) -> None | FlaskApi:
+    def get_api_endpoints(self, connexion_app: connexion.FlaskApp) -> connexion.apps.flask.FlaskApi:
         folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
         with folder.joinpath("openapi", "v1.yaml").open() as f:
             specification = safe_load(f)
-        return FlaskApi(
+
+        swagger_ui_options = SwaggerUIOptions(
+            swagger_ui=conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
+        )
+
+        return connexion_app.add_api(
             specification=specification,
             resolver=_LazyResolver(),
             base_path="/auth/fab/v1",
-            options={
-                "swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
-            },
+            swagger_ui_options=swagger_ui_options,
             strict_validation=True,
             validate_responses=True,
-            validator_map={"body": _CustomErrorRequestBodyValidator},
         )
 
     def get_user_display_name(self) -> str:
