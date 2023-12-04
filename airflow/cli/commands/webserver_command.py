@@ -355,11 +355,12 @@ def webserver(args):
         print(f"Starting the web server on port {args.port} and host {args.hostname}.")
         app = create_app(testing=conf.getboolean("core", "unit_test_mode"))
         app.run(
-            debug=True,
-            use_reloader=not app.config["TESTING"],
+            log_level="debug",
+            # reload=not app.app.config["TESTING"],
             port=args.port,
             host=args.hostname,
-            ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None,
+            ssl_keyfile=ssl_key if ssl_cert and ssl_key else None,
+            ssl_certfile=ssl_cert if ssl_cert and ssl_key else None,
         )
     else:
         print(
